@@ -13,11 +13,11 @@
     "windows": [
       {
         "title": "Flowgain",
-        "width": 720,
+        "width": 440,
         "height": 520,
-        "minWidth": 480,
-        "minHeight": 400,
-        "resizable": true,
+        "minWidth": 400,
+        "minHeight": 480,
+        "resizable": false,
         "fullscreen": false,
         "decorations": true,
         "center": true
