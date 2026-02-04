@@ -5,16 +5,18 @@ export type SoundType = 'rain' | 'birds';
 interface SoundConfig {
   id: SoundType;
   url: string;
+  label: string;
 }
 
 const SOUNDS: SoundConfig[] = [
-  { id: 'rain', url: '/sounds/rain.mp3' },
-  { id: 'birds', url: '/sounds/birds.mp3' },
+  { id: 'rain', url: '/sounds/rain.mp3', label: 'Rain' },
+  { id: 'birds', url: '/sounds/birds.mp3', label: 'Birds' },
 ];
 
 interface UseAudioReturn {
   isReady: boolean;
   isPlaying: boolean;
+  error: string | null;
   setVolume: (id: SoundType, volume: number) => void;
   start: () => void;
   stop: () => void;
@@ -27,6 +29,7 @@ export function useAudio(): UseAudioReturn {
   const buffersRef = useRef<Map<SoundType, AudioBuffer>>(new Map());
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Preload audio files
   useEffect(() => {
@@ -34,18 +37,28 @@ export function useAudio(): UseAudioReturn {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = ctx;
 
+      const missingFiles: string[] = [];
+
       const loadPromises = SOUNDS.map(async (sound) => {
         try {
           const response = await fetch(sound.url);
+          if (!response.ok) {
+            missingFiles.push(sound.label);
+            return;
+          }
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
           buffersRef.current.set(sound.id, audioBuffer);
-        } catch (error) {
-          console.warn(`Failed to load audio: ${sound.url}`, error);
+        } catch {
+          missingFiles.push(sound.label);
         }
       });
 
       await Promise.all(loadPromises);
+
+      if (missingFiles.length > 0) {
+        setError(`音源ファイルが見つかりません: ${missingFiles.join(', ')}\n\npublic/sounds/ に配置してください`);
+      }
 
       // Suspend context until user interaction
       if (ctx.state === 'running') {
@@ -126,5 +139,5 @@ export function useAudio(): UseAudioReturn {
     setIsPlaying(false);
   }, [isPlaying]);
 
-  return { isReady, isPlaying, setVolume, start, stop };
+  return { isReady, isPlaying, error, setVolume, start, stop };
 }

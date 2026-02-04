@@ -28,7 +28,7 @@ function loadSavedVolumes(): Record<SoundType, number> {
 
 function App() {
   const [volumes, setVolumes] = useState<Record<SoundType, number>>(loadSavedVolumes);
-  const { isPlaying, setVolume, start, stop } = useAudio();
+  const { isPlaying, error, setVolume, start, stop } = useAudio();
 
   // Save volumes to localStorage
   useEffect(() => {
@@ -103,7 +103,14 @@ function App() {
           </div>
         </div>
 
-        {!isPlaying && hasAnyVolume && (
+        {error && (
+          <div className="error">
+            <span className="error-icon">⚠</span>
+            <pre className="error-text">{error}</pre>
+          </div>
+        )}
+
+        {!isPlaying && hasAnyVolume && !error && (
           <p className="hint">Drag any knob to start</p>
         )}
       </main>
