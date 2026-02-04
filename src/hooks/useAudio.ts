@@ -56,6 +56,8 @@ export function useAudio(): UseAudioReturn {
 
       await Promise.all(loadPromises);
 
+      console.log('[Flowgain] Loaded buffers:', Array.from(buffersRef.current.keys()));
+
       if (missingFiles.length > 0) {
         setError(`音源ファイルが見つかりません: ${missingFiles.join(', ')}\n\npublic/sounds/ に配置してください`);
       }
@@ -77,6 +79,7 @@ export function useAudio(): UseAudioReturn {
 
   const setVolume = useCallback((id: SoundType, volume: number) => {
     const gainNode = gainNodesRef.current.get(id);
+    console.log('[Flowgain] setVolume', id, volume, 'gainNode:', gainNode ? 'exists' : 'missing');
     if (gainNode && audioContextRef.current) {
       gainNode.gain.setTargetAtTime(
         volume / 100,
@@ -87,6 +90,7 @@ export function useAudio(): UseAudioReturn {
   }, []);
 
   const start = useCallback(() => {
+    console.log('[Flowgain] start() called, isPlaying:', isPlaying);
     if (isPlaying || !audioContextRef.current) return;
 
     const ctx = audioContextRef.current;
@@ -95,10 +99,12 @@ export function useAudio(): UseAudioReturn {
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
+    console.log('[Flowgain] AudioContext state:', ctx.state);
 
     // Create gain nodes and source nodes for each sound
     SOUNDS.forEach((sound) => {
       const buffer = buffersRef.current.get(sound.id);
+      console.log('[Flowgain] Buffer for', sound.id, ':', buffer ? 'exists' : 'missing');
       if (!buffer) return;
 
       // Create gain node
