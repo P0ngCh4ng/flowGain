@@ -1,6 +1,16 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 
-export type SoundType = 'rain' | 'birds' | 'wind' | 'fire';
+export type SoundType = 'rain' | 'birds';
+
+interface SoundConfig {
+  id: SoundType;
+  url: string;
+}
+
+const SOUNDS: SoundConfig[] = [
+  { id: 'rain', url: '/sounds/rain.mp3' },
+  { id: 'birds', url: '/sounds/birds.mp3' },
+];
 
 interface UseAudioReturn {
   isReady: boolean;
@@ -10,154 +20,47 @@ interface UseAudioReturn {
   stop: () => void;
 }
 
-// Create filtered noise for ambient sounds
-function createNoiseSource(ctx: AudioContext): AudioBufferSourceNode {
-  const bufferSize = ctx.sampleRate * 2; // 2 seconds
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-
-  for (let i = 0; i < bufferSize; i++) {
-    data[i] = Math.random() * 2 - 1;
-  }
-
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
-  source.loop = true;
-  return source;
-}
-
-// Rain: filtered noise with low-mid frequencies
-function createRainSound(ctx: AudioContext, gainNode: GainNode) {
-  const noise = createNoiseSource(ctx);
-
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = 4000;
-
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 400;
-
-  noise.connect(highpass);
-  highpass.connect(lowpass);
-  lowpass.connect(gainNode);
-
-  return noise;
-}
-
-// Wind: low frequency filtered noise with modulation
-function createWindSound(ctx: AudioContext, gainNode: GainNode) {
-  const noise = createNoiseSource(ctx);
-
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = 800;
-
-  // Modulate the filter frequency for wind gusts
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.frequency.value = 0.1;
-  lfoGain.gain.value = 400;
-  lfo.connect(lfoGain);
-  lfoGain.connect(lowpass.frequency);
-  lfo.start();
-
-  noise.connect(lowpass);
-  lowpass.connect(gainNode);
-
-  return { noise, lfo };
-}
-
-// Birds: periodic chirping sounds
-function createBirdsSound(ctx: AudioContext, gainNode: GainNode) {
-  const masterGain = ctx.createGain();
-  masterGain.connect(gainNode);
-
-  const oscillators: OscillatorNode[] = [];
-  const gains: GainNode[] = [];
-
-  // Create multiple bird chirp oscillators
-  const birdFreqs = [2200, 2800, 3200, 3800, 4200];
-
-  birdFreqs.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const chirpGain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-
-    // Frequency modulation for natural chirping
-    const freqLfo = ctx.createOscillator();
-    const freqLfoGain = ctx.createGain();
-    freqLfo.frequency.value = 5 + i * 2;
-    freqLfoGain.gain.value = 100 + i * 50;
-    freqLfo.connect(freqLfoGain);
-    freqLfoGain.connect(osc.frequency);
-
-    // Volume modulation for chirp pattern
-    const volLfo = ctx.createOscillator();
-    const volLfoGain = ctx.createGain();
-    volLfo.frequency.value = 0.3 + i * 0.15;
-    volLfoGain.gain.value = 0.15;
-
-    chirpGain.gain.value = 0;
-    volLfo.connect(volLfoGain);
-    volLfoGain.connect(chirpGain.gain);
-
-    osc.connect(chirpGain);
-    chirpGain.connect(masterGain);
-
-    osc.start();
-    freqLfo.start();
-    volLfo.start();
-
-    oscillators.push(osc, freqLfo, volLfo);
-    gains.push(chirpGain);
-  });
-
-  return { oscillators, gains };
-}
-
-// Fire: crackling noise
-function createFireSound(ctx: AudioContext, gainNode: GainNode) {
-  const noise = createNoiseSource(ctx);
-
-  const lowpass = ctx.createBiquadFilter();
-  lowpass.type = 'lowpass';
-  lowpass.frequency.value = 2000;
-
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 200;
-
-  // Add some crackle with a bandpass
-  const bandpass = ctx.createBiquadFilter();
-  bandpass.type = 'bandpass';
-  bandpass.frequency.value = 800;
-  bandpass.Q.value = 2;
-
-  // Modulate for crackling effect
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  lfo.frequency.value = 8;
-  lfoGain.gain.value = 500;
-  lfo.connect(lfoGain);
-  lfoGain.connect(bandpass.frequency);
-  lfo.start();
-
-  noise.connect(highpass);
-  highpass.connect(lowpass);
-  lowpass.connect(bandpass);
-  bandpass.connect(gainNode);
-
-  return { noise, lfo };
-}
-
 export function useAudio(): UseAudioReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodesRef = useRef<Map<SoundType, GainNode>>(new Map());
-  const sourcesRef = useRef<Map<SoundType, any>>(new Map());
+  const sourceNodesRef = useRef<Map<SoundType, AudioBufferSourceNode>>(new Map());
+  const buffersRef = useRef<Map<SoundType, AudioBuffer>>(new Map());
+  const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Preload audio files
+  useEffect(() => {
+    const loadAudio = async () => {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = ctx;
+
+      const loadPromises = SOUNDS.map(async (sound) => {
+        try {
+          const response = await fetch(sound.url);
+          const arrayBuffer = await response.arrayBuffer();
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+          buffersRef.current.set(sound.id, audioBuffer);
+        } catch (error) {
+          console.warn(`Failed to load audio: ${sound.url}`, error);
+        }
+      });
+
+      await Promise.all(loadPromises);
+
+      // Suspend context until user interaction
+      if (ctx.state === 'running') {
+        await ctx.suspend();
+      }
+
+      setIsReady(true);
+    };
+
+    loadAudio();
+
+    return () => {
+      audioContextRef.current?.close();
+    };
+  }, []);
 
   const setVolume = useCallback((id: SoundType, volume: number) => {
     const gainNode = gainNodesRef.current.get(id);
@@ -171,53 +74,57 @@ export function useAudio(): UseAudioReturn {
   }, []);
 
   const start = useCallback(() => {
-    if (isPlaying) return;
+    if (isPlaying || !audioContextRef.current) return;
 
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    audioContextRef.current = ctx;
+    const ctx = audioContextRef.current;
 
-    // Create gain nodes for each sound
-    const soundTypes: SoundType[] = ['rain', 'birds', 'wind', 'fire'];
-    soundTypes.forEach((type) => {
+    // Resume context
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    // Create gain nodes and source nodes for each sound
+    SOUNDS.forEach((sound) => {
+      const buffer = buffersRef.current.get(sound.id);
+      if (!buffer) return;
+
+      // Create gain node
       const gain = ctx.createGain();
       gain.gain.value = 0;
       gain.connect(ctx.destination);
-      gainNodesRef.current.set(type, gain);
+      gainNodesRef.current.set(sound.id, gain);
+
+      // Create source node with loop
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start();
+      sourceNodesRef.current.set(sound.id, source);
     });
-
-    // Create and start all sounds
-    const rainGain = gainNodesRef.current.get('rain')!;
-    const rainSource = createRainSound(ctx, rainGain);
-    rainSource.start();
-    sourcesRef.current.set('rain', rainSource);
-
-    const windGain = gainNodesRef.current.get('wind')!;
-    const windSource = createWindSound(ctx, windGain);
-    windSource.noise.start();
-    sourcesRef.current.set('wind', windSource);
-
-    const birdsGain = gainNodesRef.current.get('birds')!;
-    const birdsSource = createBirdsSound(ctx, birdsGain);
-    sourcesRef.current.set('birds', birdsSource);
-
-    const fireGain = gainNodesRef.current.get('fire')!;
-    const fireSource = createFireSound(ctx, fireGain);
-    fireSource.noise.start();
-    sourcesRef.current.set('fire', fireSource);
 
     setIsPlaying(true);
   }, [isPlaying]);
 
   const stop = useCallback(() => {
-    if (!isPlaying || !audioContextRef.current) return;
+    if (!isPlaying) return;
 
-    audioContextRef.current.close();
-    audioContextRef.current = null;
+    // Stop all sources
+    sourceNodesRef.current.forEach((source) => {
+      try {
+        source.stop();
+      } catch {}
+    });
+    sourceNodesRef.current.clear();
     gainNodesRef.current.clear();
-    sourcesRef.current.clear();
+
+    // Suspend context
+    if (audioContextRef.current?.state === 'running') {
+      audioContextRef.current.suspend();
+    }
 
     setIsPlaying(false);
   }, [isPlaying]);
 
-  return { isReady: true, isPlaying, setVolume, start, stop };
+  return { isReady, isPlaying, setVolume, start, stop };
 }

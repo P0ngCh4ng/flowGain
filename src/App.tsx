@@ -12,8 +12,6 @@ interface SoundConfig {
 const SOUNDS: SoundConfig[] = [
   { id: 'rain', label: 'Rain', color: '#64b5f6' },
   { id: 'birds', label: 'Birds', color: '#81c784' },
-  { id: 'wind', label: 'Wind', color: '#b0bec5' },
-  { id: 'fire', label: 'Fire', color: '#ffb74d' },
 ];
 
 const STORAGE_KEY = 'flowgain-volumes';
@@ -25,7 +23,7 @@ function loadSavedVolumes(): Record<SoundType, number> {
       return JSON.parse(saved);
     }
   } catch {}
-  return { rain: 0, birds: 0, wind: 0, fire: 0 };
+  return { rain: 0, birds: 0 };
 }
 
 function App() {
