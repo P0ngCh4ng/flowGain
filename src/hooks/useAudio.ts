@@ -95,15 +95,15 @@ export function useAudio(): UseAudioReturn {
     }
   }, []);
 
-  const start = useCallback(() => {
+  const start = useCallback(async () => {
     console.log('[Flowgain] start() called, isPlaying:', isPlaying);
     if (isPlaying || !audioContextRef.current) return;
 
     const ctx = audioContextRef.current;
 
-    // Resume context
+    // Resume context (must await)
     if (ctx.state === 'suspended') {
-      ctx.resume();
+      await ctx.resume();
     }
     console.log('[Flowgain] AudioContext state:', ctx.state);
 
@@ -126,8 +126,10 @@ export function useAudio(): UseAudioReturn {
       source.connect(gain);
       source.start();
       sourceNodesRef.current.set(sound.id, source);
+      console.log('[Flowgain] Started source for', sound.id);
     });
 
+    console.log('[Flowgain] All sources started');
     setIsPlaying(true);
   }, [isPlaying]);
 
