@@ -1,0 +1,110 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f0f1a 100%);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 8px 0;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
+}
+
+.knobs {
+  display: flex;
+  gap: 48px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 40px;
+  background: linear-gradient(
+    145deg,
+    rgba(30, 30, 40, 0.8) 0%,
+    rgba(20, 20, 30, 0.9) 100%
+  );
+  border-radius: 24px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.play-button {
+  padding: 16px 48px;
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(145deg, #2a2a3a, #1a1a2a);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.play-button:hover:not(:disabled) {
+  background: linear-gradient(145deg, #3a3a4a, #2a2a3a);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.play-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.play-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.play-button.playing {
+  background: linear-gradient(145deg, #3a4a5a, #2a3a4a);
+  color: #64b5f6;
+  border-color: rgba(100, 181, 246, 0.3);
+  box-shadow:
+    0 4px 20px rgba(100, 181, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 60px;
+}
+
+.footer p {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 1px;
+}
