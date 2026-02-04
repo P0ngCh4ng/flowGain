@@ -16,14 +16,23 @@ const SOUNDS: SoundConfig[] = [
 
 const STORAGE_KEY = 'flowgain-volumes';
 
+const VALID_SOUND_IDS: SoundType[] = ['rain', 'birds'];
+
 function loadSavedVolumes(): Record<SoundType, number> {
+  const defaults: Record<SoundType, number> = { rain: 0, birds: 0 };
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Only load valid sound IDs
+      VALID_SOUND_IDS.forEach(id => {
+        if (typeof parsed[id] === 'number') {
+          defaults[id] = parsed[id];
+        }
+      });
     }
   } catch {}
-  return { rain: 0, birds: 0 };
+  return defaults;
 }
 
 function App() {
@@ -38,8 +47,8 @@ function App() {
   // Apply saved volumes when audio starts
   useEffect(() => {
     if (isPlaying) {
-      Object.entries(volumes).forEach(([id, vol]) => {
-        setVolume(id as SoundType, vol);
+      VALID_SOUND_IDS.forEach(id => {
+        setVolume(id, volumes[id] ?? 0);
       });
     }
   }, [isPlaying, volumes, setVolume]);
