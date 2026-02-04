@@ -41,15 +41,21 @@ export function useAudio(): UseAudioReturn {
 
       const loadPromises = SOUNDS.map(async (sound) => {
         try {
+          console.log('[Flowgain] Fetching:', sound.url);
           const response = await fetch(sound.url);
+          console.log('[Flowgain] Response:', sound.id, response.status, response.headers.get('content-type'));
           if (!response.ok) {
+            console.log('[Flowgain] Response not ok for:', sound.id);
             missingFiles.push(sound.label);
             return;
           }
           const arrayBuffer = await response.arrayBuffer();
+          console.log('[Flowgain] ArrayBuffer size:', sound.id, arrayBuffer.byteLength);
           const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+          console.log('[Flowgain] Decoded:', sound.id, audioBuffer.duration, 'seconds');
           buffersRef.current.set(sound.id, audioBuffer);
-        } catch {
+        } catch (err) {
+          console.error('[Flowgain] Error loading', sound.id, err);
           missingFiles.push(sound.label);
         }
       });
