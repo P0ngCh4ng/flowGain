@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Knob } from './components/Knob';
 import { useAudio, type SoundType } from './hooks/useAudio';
 import './App.css';
@@ -16,28 +16,57 @@ const SOUNDS: SoundConfig[] = [
   { id: 'fire', label: 'Fire', color: '#ffb74d' },
 ];
 
-function App() {
-  const [volumes, setVolumes] = useState<Record<SoundType, number>>({
-    rain: 0,
-    birds: 0,
-    wind: 0,
-    fire: 0,
-  });
+const STORAGE_KEY = 'flowgain-volumes';
 
-  const { isReady, isPlaying, setVolume, start, stop } = useAudio();
+function loadSavedVolumes(): Record<SoundType, number> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {}
+  return { rain: 0, birds: 0, wind: 0, fire: 0 };
+}
+
+function App() {
+  const [volumes, setVolumes] = useState<Record<SoundType, number>>(loadSavedVolumes);
+  const { isPlaying, setVolume, start, stop } = useAudio();
+
+  // Save volumes to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(volumes));
+  }, [volumes]);
+
+  // Apply saved volumes when audio starts
+  useEffect(() => {
+    if (isPlaying) {
+      Object.entries(volumes).forEach(([id, vol]) => {
+        setVolume(id as SoundType, vol);
+      });
+    }
+  }, [isPlaying, volumes, setVolume]);
 
   const handleVolumeChange = useCallback((id: SoundType, value: number) => {
     setVolumes(prev => ({ ...prev, [id]: value }));
     setVolume(id, value);
   }, [setVolume]);
 
-  const handleToggle = useCallback(() => {
+  // Auto-start audio on first knob interaction
+  const handleInteractionStart = useCallback(() => {
+    if (!isPlaying) {
+      start();
+    }
+  }, [isPlaying, start]);
+
+  const handlePowerToggle = useCallback(() => {
     if (isPlaying) {
       stop();
     } else {
       start();
     }
   }, [isPlaying, start, stop]);
+
+  const hasAnyVolume = Object.values(volumes).some(v => v > 0);
 
   return (
     <div className="app">
@@ -47,29 +76,42 @@ function App() {
       </header>
 
       <main className="main">
-        <div className="knobs">
-          {SOUNDS.map(sound => (
-            <Knob
-              key={sound.id}
-              value={volumes[sound.id]}
-              onChange={(v) => handleVolumeChange(sound.id, v)}
-              label={sound.label}
-              color={sound.color}
-            />
-          ))}
+        <div className="panel">
+          {/* Power indicator */}
+          <button
+            className={`power-button ${isPlaying ? 'on' : ''}`}
+            onClick={handlePowerToggle}
+            aria-label={isPlaying ? 'Stop' : 'Start'}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20">
+              <path
+                fill="currentColor"
+                d="M12 3a1 1 0 0 1 1 1v8a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1zm-5.657 3.343a1 1 0 0 1 0 1.414 6 6 0 1 0 8.485 0 1 1 0 1 1 1.415-1.414 8 8 0 1 1-11.314 0 1 1 0 0 1 1.414 0z"
+              />
+            </svg>
+          </button>
+
+          <div className="knobs">
+            {SOUNDS.map(sound => (
+              <Knob
+                key={sound.id}
+                value={volumes[sound.id]}
+                onChange={(v) => handleVolumeChange(sound.id, v)}
+                onInteractionStart={handleInteractionStart}
+                label={sound.label}
+                color={sound.color}
+              />
+            ))}
+          </div>
         </div>
 
-        <button
-          className={`play-button ${isPlaying ? 'playing' : ''}`}
-          onClick={handleToggle}
-          disabled={!isReady}
-        >
-          {!isReady ? 'Loading...' : isPlaying ? 'Stop' : 'Play'}
-        </button>
+        {!isPlaying && hasAnyVolume && (
+          <p className="hint">Drag any knob to start</p>
+        )}
       </main>
 
       <footer className="footer">
-        <p>Drag knobs up/down or scroll to adjust</p>
+        <p>Scroll or drag up/down to adjust · Double-click to reset</p>
       </footer>
     </div>
   );
